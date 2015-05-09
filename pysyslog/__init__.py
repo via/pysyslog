@@ -6,12 +6,14 @@ DELIMITER = bytes('\n', 'ascii')
 
 __all__ = ['SyslogProtocol']
 
+
 class SyslogProtocol(asyncio.Protocol):
+
+    delimiter = bytes('\n', 'ascii')
+    maxbuffersize = 65535
 
     def __init__(self):
         self.recvbuffer = bytearray()
-        self.delimiter = DELIMITER
-        self.maxbuffersize = MAXBUFFERSIZE
 
     def connection_made(self, transport):
         self.remote_host = transport.get_extra_info('peername')
@@ -25,7 +27,8 @@ class SyslogProtocol(asyncio.Protocol):
             self.overflow()
             self.recvbuffer = bytearray()
         while True:
-            (event, partition, rest) = self.recvbuffer.partition(self.delimiter)
+            (event, partition, rest) = \
+                self.recvbuffer.partition(self.delimiter)
             if partition == self.delimiter:
                 self.handle_message(event, self.remote_host)
                 self.recvbuffer = rest
@@ -45,7 +48,8 @@ class SyslogProtocol(asyncio.Protocol):
 
     def decode_message(self, message):
         event = {}
-        syslog_re = r"<(\d{1,3})>(\w{3} [ \d]\d \d\d:\d\d:\d\d) (\w+) ([a-zA-Z0-9]{0,32}).(.*)$"
+        syslog_re = r"<(\d{1,3})>(\w{3} [ \d]\d \d\d:\d\d:\d\d) " + \
+                    r"(\w+) ([a-zA-Z0-9]{0,32}).(.*)$"
         m = re.match(syslog_re, message)
         if m is not None:
             fac, sev = self._decode_PRI(int(m.group(1)))
@@ -69,4 +73,3 @@ class SyslogProtocol(asyncio.Protocol):
 
     def handle_event(self, event):
         pass
-
