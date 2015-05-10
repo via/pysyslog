@@ -42,6 +42,7 @@ class SyslogProtocol(asyncio.Protocol):
         try:
             msg = event.decode('ascii')
             event = self.decode_message(msg)
+            event['sender'] = sender
             self.handle_event(event)
         except UnicodeDecodeError:
             self.decode_error("message is not 7-bit clean")
