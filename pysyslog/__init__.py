@@ -8,8 +8,8 @@ class SyslogProtocol(asyncio.Protocol):
 
     delimiter = bytes('\n', 'ascii')
     maxbuffersize = 65535
-    syslog_re = re.compile(r"<(\d{1,3})>(\w{3} [ \d]\d \d\d:\d\d:\d\d) " + \
-                           r"(\w+) ([a-zA-Z0-9]{0,32}).(.*)$")
+    syslog_re = re.compile(r"<(\d{1,3})>(?P<timestamp>\w{3} [ \d]\d \d\d:\d\d:\d\d) " + \
+                           r"(?P<host>\w+) (?P<tag>[a-zA-Z0-9]{0,32}).(?P<message>.*)$")
 
     def __init__(self):
         self.recvbuffer = bytearray()
@@ -25,14 +25,12 @@ class SyslogProtocol(asyncio.Protocol):
         if len(self.recvbuffer) > self.maxbuffersize:
             self.overflow()
             self.recvbuffer = bytearray()
-        while True:
-            (event, partition, rest) = \
-                self.recvbuffer.partition(self.delimiter)
-            if partition == self.delimiter:
+
+        parts = self.recvbuffer.split(self.delimiter)
+        if len(parts) > 1:
+            for event in parts[0:-1]:
                 self.handle_message(event, self.remote_host)
-                self.recvbuffer = rest
-            else:
-                break
+            self.recvbuffer = parts[-1]
 
     def overflow(self):
         pass
@@ -51,12 +49,9 @@ class SyslogProtocol(asyncio.Protocol):
         m = re.match(self.syslog_re, message)
         if m is not None:
             fac, sev = self._decode_PRI(int(m.group(1)))
+            event = m.groupdict()
             event['facility'] = fac
             event['severity'] = sev
-            event['timestamp'] = m.group(2)
-            event['host'] = m.group(3)
-            event['tag'] = m.group(4)
-            event['message'] = m.group(5)
         else:
             event['message'] = message
         return event
