@@ -1,9 +1,6 @@
 import asyncio
 import re
 
-MAXBUFFERSIZE = 65535
-DELIMITER = bytes('\n', 'ascii')
-
 __all__ = ['SyslogProtocol']
 
 
@@ -11,6 +8,8 @@ class SyslogProtocol(asyncio.Protocol):
 
     delimiter = bytes('\n', 'ascii')
     maxbuffersize = 65535
+    syslog_re = re.compile(r"<(\d{1,3})>(\w{3} [ \d]\d \d\d:\d\d:\d\d) " + \
+                           r"(\w+) ([a-zA-Z0-9]{0,32}).(.*)$")
 
     def __init__(self):
         self.recvbuffer = bytearray()
@@ -49,9 +48,7 @@ class SyslogProtocol(asyncio.Protocol):
 
     def decode_message(self, message):
         event = {}
-        syslog_re = r"<(\d{1,3})>(\w{3} [ \d]\d \d\d:\d\d:\d\d) " + \
-                    r"(\w+) ([a-zA-Z0-9]{0,32}).(.*)$"
-        m = re.match(syslog_re, message)
+        m = re.match(self.syslog_re, message)
         if m is not None:
             fac, sev = self._decode_PRI(int(m.group(1)))
             event['facility'] = fac
